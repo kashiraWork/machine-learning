@@ -111,6 +111,8 @@ class LSTM:
         Wx, Wh, b = self.params
         N, H = h_prev.shape
 
+        A_1 = np.dot(x, Wx)
+        A_2 = np.dot(h_prev, Wh)
         A = np.dot(x, Wx) + np.dot(h_prev, Wh) + b
 
         f = A[:, :H]
@@ -384,6 +386,14 @@ class TimeBiLSTM:
         dxs = dxs1 + dxs2
         return dxs
 
+    def set_state(self, h, c=None):
+        self.forward_lstm.set_state(h, c)
+        self.backward_lstm.set_state(h, c)
+
+    def reset_state(self):
+        self.forward_lstm.reset_state()
+        self.backward_lstm.reset_state()
+
 # ====================================================================== #
 # 以下に示すレイヤは、本書で説明をおこなっていないレイヤの実装もしくは
 # 処理速度よりも分かりやすさを優先したレイヤの実装です。
@@ -612,7 +622,3 @@ class Simple_TimeAffine:
             self.db += layer.db
 
         return dxs
-
-
-
-

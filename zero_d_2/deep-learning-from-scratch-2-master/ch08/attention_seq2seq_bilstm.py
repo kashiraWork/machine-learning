@@ -6,7 +6,27 @@ from ch07.seq2seq import Encoder, Seq2seq
 from ch08.attention_layer import TimeAttention
 
 
-class AttentionEncoder(Encoder):
+class AttentionBILSTMEncoder(Encoder):
+    def __init__(self, vocab_size, wordvec_size, hidden_size):
+        V, D, H = vocab_size, wordvec_size, hidden_size
+        rn = np.random.randn
+
+        embed_W = (rn(V, D) / 100).astype('f')
+        lstm_Wx1 = (rn(D, 4 * H) / np.sqrt(D)).astype('f')
+        lstm_Wh1 = (rn(H, 4 * H) / np.sqrt(H)).astype('f')
+        lstm_b1 = np.zeros(4 * H).astype('f')
+        lstm_Wx2 = (rn(D, 4 * H) / np.sqrt(D)).astype('f')
+        lstm_Wh2 = (rn(H, 4 * H) / np.sqrt(H)).astype('f')
+        lstm_b2 = np.zeros(4 * H).astype('f')
+
+        self.embed = TimeEmbedding(embed_W)
+        self.lstm = TimeBiLSTM(lstm_Wx1, lstm_Wh1, lstm_b1,
+            lstm_Wx2, lstm_Wh2, lstm_b2, stateful=False)
+
+        self.params = self.embed.params + self.lstm.params
+        self.grads = self.embed.grads + self.lstm.grads
+        self.hs = None
+
     def forward(self, xs):
         xs = self.embed.forward(xs)
         hs = self.lstm.forward(xs)
@@ -18,20 +38,24 @@ class AttentionEncoder(Encoder):
         return dout
 
 
-class AttentionDecoder:
+class AttentionBILSTMDecoder:
     def __init__(self, vocab_size, wordvec_size, hidden_size):
         V, D, H = vocab_size, wordvec_size, hidden_size
         rn = np.random.randn
 
         embed_W = (rn(V, D) / 100).astype('f')
-        lstm_Wx = (rn(D, 4 * H) / np.sqrt(D)).astype('f')
-        lstm_Wh = (rn(H, 4 * H) / np.sqrt(H)).astype('f')
-        lstm_b = np.zeros(4 * H).astype('f')
+        lstm_Wx1 = (rn(D, 4 * H) / np.sqrt(D)).astype('f')
+        lstm_Wh1 = (rn(H, 4 * H) / np.sqrt(H)).astype('f')
+        lstm_b1 = np.zeros(4 * H).astype('f')
+        lstm_Wx2 = (rn(D, 4 * H) / np.sqrt(D)).astype('f')
+        lstm_Wh2 = (rn(H, 4 * H) / np.sqrt(H)).astype('f')
+        lstm_b2 = np.zeros(4 * H).astype('f')
         affine_W = (rn(2*H, V) / np.sqrt(2*H)).astype('f')
         affine_b = np.zeros(V).astype('f')
 
         self.embed = TimeEmbedding(embed_W)
-        self.lstm = TimeLSTM(lstm_Wx, lstm_Wh, lstm_b, stateful=True)
+        self.lstm = TimeBiLSTM(lstm_Wx1, lstm_Wh1, lstm_b1,
+            lstm_Wx2, lstm_Wh2, lstm_b2, stateful=True)
         self.attention = TimeAttention()
         self.affine = TimeAffine(affine_W, affine_b)
         layers = [self.embed, self.lstm, self.attention, self.affine]
@@ -89,11 +113,11 @@ class AttentionDecoder:
         return sampled
 
 
-class AttentionSeq2seq(Seq2seq):
+class AttentionSeq2seqBILSTM(Seq2seq):
     def __init__(self, vocab_size, wordvec_size, hidden_size):
         args = vocab_size, wordvec_size, hidden_size
-        self.encoder = AttentionEncoder(*args)
-        self.decoder = AttentionDecoder(*args)
+        self.encoder = AttentionBILSTMEncoder(*args)
+        self.decoder = AttentionBILSTMDecoder(*args)
         self.softmax = TimeSoftmaxWithLoss()
 
         self.params = self.encoder.params + self.decoder.params
